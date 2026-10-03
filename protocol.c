@@ -501,7 +501,7 @@ static int send_block (STATE *state, BINKD_CONFIG *config)
                   {
                     FTN_NODE *fn = state->to ? state->to : get_node_info(fa, config);
                     memset(buf+26, 0, 8);
-                    if (fn->pkt_pwd) memmove(buf+26, fn->pkt_pwd, 8);
+                    if (fn && fn->pkt_pwd) strncpy((char *)buf+26, fn->pkt_pwd, 8);
                   }
                 }
                 break;
@@ -1099,7 +1099,7 @@ static int ADR (STATE *state, char *s, int sz, BINKD_CONFIG *config)
         strcpy(ss, s);
         strcat(ss, ad);
         s = ss;
-        s[sz = sz + strlen(ad)] = 0;
+        sz = strlen(s);
       }
     }
     w = getwordx (s, 1, 0);
@@ -2245,7 +2245,7 @@ static int GET (STATE *state, char *args, int sz, BINKD_CONFIG *config)
         /* to satisfy remote GET_FILE_balance */
         msg_sendf (state, M_FILE, "%s %" PRIuMAX " %" PRIuMAX " %" PRIuMAX,
                    state->out.netname, (uintmax_t) state->out.size,
-                   (uintmax_t) state->out.time, strtoumax(argv[3], NULL, 10));
+                   (uintmax_t) state->out.time, (uintmax_t) strtoumax(argv[3], NULL, 10));
         if (strtoumax(argv[3], NULL, 10) == (uintmax_t) state->out.size &&
             (state->ND_flag & WE_ND))
         {
@@ -2502,7 +2502,10 @@ static int EOB (STATE *state, char *buf, int sz, BINKD_CONFIG *config)
     if ((state->NR_flag & THEY_NR) == 0 && offset != 0)
     {
       char nodestr[FTN_ADDR_SZ];
-      ftnaddress_to_str (nodestr, state->fa);
+      if (state->fa)
+        ftnaddress_to_str (nodestr, state->fa);
+      else
+        strcpy (nodestr, "?");
       fclose (state->in.f);
       state->in.f = NULL;
       Log (1, "receiving of %s interrupted", state->in.netname);
@@ -2920,7 +2923,7 @@ static int start_file_transfer (STATE *state, FTNQ *file, BINKD_CONFIG *config)
 
       /* look for the file in not-to-send list */
       for (i = 0; i < state->n_nosendlist; i++)
-        if (strcmp(w ? w : file->path, state->nosendlist[i]) == 0) {
+        if (strcmp(w ? w : state->out.path, state->nosendlist[i]) == 0) {
             xfree (w);
             remove_from_spool (state, state->out.flo,
                                state->out.path, state->out.action, config);

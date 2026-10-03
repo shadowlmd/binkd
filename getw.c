@@ -38,6 +38,8 @@ char *getwordx2 (const char *src, int n, int flags, char *fldsep, char *fldskip)
 	int base = 8, ch = 0;
 
 	++src;
+	if (!*src)		       /* trailing backslash */
+	  break;
 	if (!isdigit (*src) && *src != 'x' && *src != 'X')
 	{
 	  switch (*src)
@@ -111,7 +113,7 @@ char *getwordx2 (const char *src, int n, int flags, char *fldsep, char *fldskip)
 	  char *var;
 	  unsigned k;
 
-	  for (k = 0; k < sizeof (varname) &&
+	  for (k = 0; k < sizeof (varname) - 1 && *src &&
 	       !isspace (*src) &&
 	       *src != '%'; ++k)
 	    varname[k] = toupper (src++[0]);

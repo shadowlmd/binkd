@@ -93,18 +93,21 @@ int run (char *cmd)
   strcat(cs, sp);
   if (!CreateProcess(NULL, cs, NULL, NULL, 0, dw, NULL, NULL, &si, &pi))
     Log (1, "Error in CreateProcess()=%ld", (long)GetLastError());
-  else if (sp==cmd)
+  else
   {
-    if (WaitForSingleObject(pi.hProcess, INFINITE) != WAIT_OBJECT_0)
-      Log (1, "Error in WaitForSingleObject()=%ld", (long)GetLastError());
-    else if (!GetExitCodeProcess(pi.hProcess, &dw))
-      Log (1, "Error in GetExitCodeProcess()=%ld", (long)GetLastError());
-    else
-      Log (3, "rc=%i", rc = (int)dw);
+    if (sp==cmd)
+    {
+      if (WaitForSingleObject(pi.hProcess, INFINITE) != WAIT_OBJECT_0)
+        Log (1, "Error in WaitForSingleObject()=%ld", (long)GetLastError());
+      else if (!GetExitCodeProcess(pi.hProcess, &dw))
+        Log (1, "Error in GetExitCodeProcess()=%ld", (long)GetLastError());
+      else
+        Log (3, "rc=%i", rc = (int)dw);
+    }
+    CloseHandle(pi.hProcess);
+    CloseHandle(pi.hThread);
   }
   free(cs);
-  CloseHandle(pi.hProcess);
-  CloseHandle(pi.hThread);
 #else
   Log (3, "executing `%s'", cmd);
   Log (3, "rc=%i", (rc=system (cmd)));

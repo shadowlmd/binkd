@@ -449,9 +449,9 @@ unsigned char *MD_getChallenge(char *str, STATE *rnd)
     while(sp[0]) if(*sp++=='-') break;
     if(!sp[0]) return NULL;
     for(i=0;isxdigit((int)sp[i]);i++) if(i>=128) break;
-    i/=2;
-    res=(unsigned char*)xalloc(i+1);
-    res[0]=(char)i;
+    /* odd number of digits uses (i+1)/2 bytes */
+    res=(unsigned char*)xalloc((i+1)/2+1);
+    res[0]=(char)(i/2);
     for(i=0;isxdigit((int)sp[i]) && (i<128);i++) {
       unsigned char c=tolower(sp[i]);
       if(c>'9') c-='a'-10;

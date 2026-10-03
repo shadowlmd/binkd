@@ -566,7 +566,7 @@ static int start_service(void)
       Log(1, "Access to starting service \"%s\" is denied...", service_name);
       break;
     default:
-      Log(1, "Error at starting service \"%s\": %s", err, service_name, w32err(err) );
+      Log(1, "Error at starting service \"%s\": %s", service_name, w32err(err) );
     }
     return -1;
   }
@@ -607,7 +607,7 @@ static int stop_service(void)
       Log(1, "Access to control service \"%s\" is denied!", service_name);
       break;
     default:
-      Log(1, "Error at stopping service \"%s\": %s", err, service_name, w32err(err) );
+      Log(1, "Error at stopping service \"%s\": %s", service_name, w32err(err) );
     }
     return -1;
   }
@@ -644,7 +644,7 @@ static int uninstall_service(void)
       Log(1, "Access to uninstalling service \"%s\" is denied!", service_name);
       break;
     default:
-      Log(1, "Error at uninstalling service \"%s\": %s", err, service_name, w32err(err) );
+      Log(1, "Error at uninstalling service \"%s\": %s", service_name, w32err(err) );
     }
     return -1;
   }

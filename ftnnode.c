@@ -270,14 +270,19 @@ static FTN_NODE *get_defnode_info(FTN_ADDR *fa, FTN_NODE *on, BINKD_CONFIG *conf
   /* following section will copy defnode parameters to the node record */
   if (on)
   { /* on contains only passwd */
-    on->hosts=xstrdup(/*host*/np->hosts);
+    /* Old strings are not freed: other threads can use them right now.
+     * Copy only if changed, so we don't leak on every call. */
+    if (np->hosts && (!on->hosts || strcmp(on->hosts, np->hosts)))
+      on->hosts=xstrdup(/*host*/np->hosts);
     on->NR_flag=np->NR_flag;
     on->ND_flag=np->ND_flag;
     on->MD_flag=np->MD_flag;
     on->NP_flag=np->NP_flag;
     on->HC_flag=np->HC_flag;
     on->restrictIP=np->restrictIP;
-    on->pipe=np->pipe;
+    /* Never share np->pipe: free_nodes() would free it twice */
+    if (np->pipe && (!on->pipe || strcmp(on->pipe, np->pipe)))
+      on->pipe=xstrdup(np->pipe);
     on->IP_afamily=np->IP_afamily;
 #ifdef BW_LIM
     on->bw_send = np->bw_send; on->bw_recv = np->bw_recv;
@@ -285,6 +290,7 @@ static FTN_NODE *get_defnode_info(FTN_ADDR *fa, FTN_NODE *on, BINKD_CONFIG *conf
 #ifdef AF_FORCE
     on->AFF_flag = np->AFF_flag;
 #endif
+    on->recheck = safe_time() + RESOLVE_TTL;
     return on;
   }
 
