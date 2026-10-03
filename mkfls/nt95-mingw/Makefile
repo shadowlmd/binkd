@@ -1,11 +1,20 @@
-# $Id$
+# MinGW Makefile for binkd (GNU make)
 #
-
-# Usage: make [DEBUG=1] [BINKD9X=1] [PERL=1] [PERLDL=1]
-#             [ZLIB=1] [BZLIB2=1] [ZLIBDL=1] [DEBUGCHILD=1]
-#             [IPV6=1] [FTS5004=1] [BW_LIM=1] [AF_FORCE=1]
+# Run it from the binkd source root:
 #
+#   mingw32-make -f mkfls/nt95-mingw/Makefile [options]
 #
+# Options: [DEBUG=1] [DEBUGCHILD=1] [BINKD9X=1] [IPV6=1] [FTS5004=1]
+#          [BW_LIM=1] [AF_FORCE=1] [NTLM=0] [PERL=1] [PERLDL=1]
+#          [ZLIB=1] [BZLIB2=1] [ZLIBDL=1]
+#
+# On Windows the commands are run by cmd.exe, MSYS is not required.
+# On other systems (cross-compiling) POSIX shell commands are used, e.g.:
+#
+#   make -f mkfls/nt95-mingw/Makefile CC=i686-w64-mingw32-gcc \
+#        WINDRES=i686-w64-mingw32-windres
+#
+# Targets: all (default), clean, distclean
 
 #PERL_BASE=c:/Perl
 #PERL_LIB=perl58
@@ -17,242 +26,217 @@
 
 # =============================================================================
 
-WINDRES?=windres
+ifeq ($(OS),Windows_NT)
+  SHELL := cmd.exe
+  winpath = $(subst /,\,$(1))
+  MKDIR   = if not exist "$(call winpath,$(1))" mkdir "$(call winpath,$(1))"
+  RMDIR   = if exist "$(call winpath,$(1))" rmdir /s /q "$(call winpath,$(1))"
+  Q       = "
+else
+  MKDIR   = mkdir -p $(1)
+  RMDIR   = rm -rf $(1)
+  Q       = '
+endif
 
-OUTDIR=bin/mingw32
-BINKDTYPE=mingw32
+CC      = gcc
+WINDRES = windres
 
-CC?=gcc
-CFLAGS+= -mno-cygwin -mthreads -pipe -funsigned-char \
-         -Wall -Wno-char-subscripts -Wno-comment
+NTLM ?= 1
 
-CDEFS+=  -DHAVE_THREADS -DHAVE_UNISTD -DHAVE_INTTYPES_H -DHAVE_INTMAX_T \
-         -DWIN32 -DHAVE_IO_H -DHAVE_DOS_H -DHAVE_STDARG_H               \
-         -DHTTPS -DNTLM -DHAVE_SNPRINTF -DHAVE_VSNPRINTF \
-         -DAMIGADOS_4D_OUTBOUND -DHASATTRIBUTE -DNONAMELESSUNION
+OUTDIR    = bin/mingw32
+BINKDTYPE = mingw32
 
+CFLAGS  += -mthreads -pipe -funsigned-char -Wall -Wno-char-subscripts -Wno-comment
 
-SRCS= binkd.c readcfg.c tools.c ftnaddr.c ftnq.c client.c server.c protocol.c \
-      bsy.c inbound.c branch.c ftndom.c ftnnode.c srif.c pmatch.c readflo.c   \
-      prothlp.c iptools.c rfc2553.c run.c binlog.c exitproc.c getw.c xalloc.c \
-      setpttl.c https.c md5b.c crypt.c getopt.c nt/breaksig.c nt/getfree.c    \
-      nt/sem.c nt/TCPErr.c nt/WSock.c nt/w32tools.c nt/tray.c snprintf.c      \
-      ntlm/ecb_enc.c ntlm/md4_dgst.c ntlm/set_key.c ntlm/des_enc.c            \
-      ntlm/helpers.c
+CDEFS += -DWIN32 -DHAVE_THREADS -DHAVE_INTTYPES_H -DHAVE_INTMAX_T -DHAVE_IO_H \
+         -DHAVE_DOS_H -DHAVE_STDARG_H -DHAVE_SNPRINTF -DHAVE_VSNPRINTF       \
+         -DHTTPS -DAMIGADOS_4D_OUTBOUND -DHASATTRIBUTE -DNONAMELESSUNION
 
-RES=  nt/binkdres.rc
+SRCS = binkd.c readcfg.c tools.c ftnaddr.c ftnq.c client.c server.c protocol.c \
+       bsy.c inbound.c branch.c ftndom.c ftnnode.c srif.c pmatch.c readflo.c   \
+       prothlp.c iptools.c rfc2553.c run.c binlog.c exitproc.c getw.c xalloc.c \
+       setpttl.c https.c md5b.c crypt.c getopt.c snprintf.c                    \
+       nt/breaksig.c nt/getfree.c nt/sem.c nt/TCPErr.c nt/WSock.c             \
+       nt/w32tools.c nt/tray.c
 
-OBJDIR= $(OUTDIR)/obj
-MAKEDIRSONLY= $(OBJDIR) $(OBJDIR)/nt $(OBJDIR)/ntlm
-MAKEDIRS= $(OUTDIR) $(MAKEDIRSONLY)
+RES = nt/binkdres.rc
 
-# binkd9x +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+# NTLM proxy authorization +++++++++++++++++++++++++++++++++++++++++++++++++++
+ifeq ($(NTLM),1)
+CDEFS += -DNTLM
+SRCS  += ntlm/des_enc.c ntlm/helpers.c ntlm/ecb_enc.c ntlm/md4_dgst.c ntlm/set_key.c
+else
+OPTDIR += -nontlm
+endif
+
+# binkd9x / binkd (NT service) +++++++++++++++++++++++++++++++++++++++++++++++
 ifdef BINKD9X
-SRCS+= nt/win9x.c
-CDEFS+= -DBINKD9X
-LFLAGS+= -Wl,--subsystem,windows
-BINKDNAME=binkd9x-mingw
-OUTDIR:=$(OUTDIR)-binkd9x
-BINKDTYPE:=$(BINKDTYPE), binkd9x
-LIBS+=   -lwsock32
+SRCS      += nt/win9x.c
+CDEFS     += -DBINKD9X
+LDFLAGS   += -mwindows
+LIBS      += -lwsock32
+BINKDNAME  = binkd9x-mingw
+OUTDIR    := $(OUTDIR)-binkd9x
+BINKDTYPE := $(BINKDTYPE), binkd9x
 else
+SRCS      += nt/service.c
 ifdef IPV6
-CDEFS+= -DIPV6
-LIBS+=   -lws2_32
-SRCS+= nt/service.c
-BINKDNAME=binkd-mingw-ipv6
-OUTDIR:=$(OUTDIR)-binkd-ipv6
+CDEFS     += -DIPV6
+LIBS      += -lws2_32
+BINKDNAME  = binkd-mingw-ipv6
+OUTDIR    := $(OUTDIR)-binkd-ipv6
 else
-LIBS+=   -lwsock32
-SRCS+= nt/service.c
-BINKDNAME=binkd-mingw
-OUTDIR:=$(OUTDIR)-binkd
+LIBS      += -lwsock32
+BINKDNAME  = binkd-mingw
+OUTDIR    := $(OUTDIR)-binkd
 endif
 ifdef FTS5004
-CDEFS+= -DWITH_FTS5004
-LIBS+= -ldnsapi
-SRCS+= srv_gai.c
+CDEFS     += -DWITH_FTS5004
+SRCS      += srv_gai.c
+LIBS      += -ldnsapi
+OPTDIR    += -fts5004
 endif
 endif
-# binkd9x ---------------------------------------------------------------------
 
-# debug +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+# debug ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 ifdef DEBUG
-CFLAGS+= -g
-CDEFS+= -DDEBUG -D_DEBUG
-BINKDNAME:=$(BINKDNAME)-debug
-OUTDIR:=$(OUTDIR)-debug
-BINKDTYPE:=$(BINKDTYPE), debug
+CFLAGS    += -g
+CDEFS     += -DDEBUG -D_DEBUG
+BINKDNAME := $(BINKDNAME)-debug
+OUTDIR    := $(OUTDIR)-debug
+BINKDTYPE := $(BINKDTYPE), debug
 else
-CFLAGS+= -s -O2
+CFLAGS    += -O2
+LDFLAGS   += -s
 endif
-# debug (DEBUG) ---------------------------------------------------------------
 
-# debugchild, nofork ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 ifdef DEBUGCHILD
-CDEFS+= -DDEBUGCHILD
-BINKDNAME:=$(BINKDNAME)-debugchild
-OUTDIR:=$(OUTDIR)-debugchild
-BINKDTYPE:=$(BINKDTYPE), debugchild
+CDEFS     += -DDEBUGCHILD
+BINKDNAME := $(BINKDNAME)-debugchild
+OUTDIR    := $(OUTDIR)-debugchild
+BINKDTYPE := $(BINKDTYPE), debugchild
 endif
-# debugchild, nofork ----------------------------------------------------------
 
-# bandwidth limiting ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+# bandwidth limiting, soft AF force ++++++++++++++++++++++++++++++++++++++++++
 ifdef BW_LIM
-CDEFS+= -DBW_LIM=1
+CDEFS  += -DBW_LIM=1
+OPTDIR += -bwlim
 endif
-# bandwidth limiting ----------------------------------------------------------
 
-# soft AF force +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 ifdef AF_FORCE
-CDEFS+= -DAF_FORCE=1
+CDEFS  += -DAF_FORCE=1
+OPTDIR += -afforce
 endif
-# soft AF force ---------------------------------------------------------------
 
-# perl support ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+# perl support +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 # PERLDL implies PERL
 ifdef PERLDL
-ifndef PERL
-PERL=1
-endif
+PERL = 1
 endif
 
 ifdef PERL
+PERL_BASE ?= $(shell perl -MConfig -e $(Q)print $$Config{prefix}$(Q))
+PERL_INCL  = $(PERL_BASE)/lib/CORE
 
-ifndef PERL_BASE
-PERL_BASE=${shell perl -mConfig -e 'print $$Config::Config{prefix};'}
-endif
-
-ifdef PERL_BASE
-PERL_INCL=$(PERL_BASE)/lib/CORE
-else
-PERL_INCL=${shell perl -mConfig -e '$$_ = $$Config::Config{libpth}; s!^\"!!; s!\"$$!!; !s!\\!/!g; print;'}
-endif
-
-CDEFS+= -DWITH_PERL -DNDEBUG -DNO_STRICT -DHAVE_DES_FCRYPT -DPERL_IMPLICIT_CONTEXT -DPERL_IMPLICIT_SYS -DPERL_MSVCRT_READFIX
-SRCS+= perlhooks.c
-C_DIRS+= -idirafter "$(PERL_INCL)"
+CDEFS  += -DWITH_PERL -DNDEBUG -DNO_STRICT -DHAVE_DES_FCRYPT \
+          -DPERL_IMPLICIT_CONTEXT -DPERL_IMPLICIT_SYS -DPERL_MSVCRT_READFIX
+SRCS   += perlhooks.c
+C_DIRS += -idirafter "$(PERL_INCL)"
 
 ifdef PERLDL
-CDEFS+= -DPERLDL
-CFLAGS+= -fno-strict-aliasing
-BINKDNAME:=$(BINKDNAME)-perldl
-OUTDIR:=$(OUTDIR)-perldl
-BINKDTYPE:=$(BINKDTYPE), perldl
+CDEFS     += -DPERLDL
+CFLAGS    += -fno-strict-aliasing
+BINKDNAME := $(BINKDNAME)-perldl
+OUTDIR    := $(OUTDIR)-perldl
+BINKDTYPE := $(BINKDTYPE), perldl
 else
-
-ifndef PERL_LIB
-PERL_LIB=${shell perl -mConfig -e '($$_ = $$Config::Config{libperl}) =~ s!\.lib$$!!i; print;'}
-endif
-
-L_DIRS+= -L"$(PERL_INCL)"
-LIBS+= -l$(PERL_LIB)
-BINKDNAME:=$(BINKDNAME)-perl
-OUTDIR:=$(OUTDIR)-perl
-BINKDTYPE:=$(BINKDTYPE), perl
+# libperlNNN.a or perlNNN.lib -> perlNNN
+PERL_LIB  ?= $(shell perl -MConfig -e $(Q)($$_ = $$Config{libperl}) =~ s/^lib//; s/\.(a|lib)$$//; print$(Q))
+L_DIRS    += -L"$(PERL_INCL)"
+LIBS      += -l$(PERL_LIB)
+BINKDNAME := $(BINKDNAME)-perl
+OUTDIR    := $(OUTDIR)-perl
+BINKDTYPE := $(BINKDTYPE), perl
 endif
 endif
-# perl support ----------------------------------------------------------------
 
-# zlib support ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+# zlib, bzlib2 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 ifdef ZLIB
-CDEFS+= -DWITH_ZLIB
-ZLIB_BZLIB2=1
-
+CDEFS += -DWITH_ZLIB
 ifdef ZLIB_BASE
-C_DIRS+= -I "$(ZLIB_BASE)/include"
-L_DIRS+= -L "$(ZLIB_BASE)/lib"
+C_DIRS += -I"$(ZLIB_BASE)/include"
+L_DIRS += -L"$(ZLIB_BASE)/lib"
 endif
-
 ifndef ZLIBDL
-ifndef ZLIB_LIB
-ZLIB_LIB=z
-endif
-LIBS+= -l"$(ZLIB_LIB)"
-BINKDNAME:=$(BINKDNAME)-zlib
-OUTDIR:=$(OUTDIR)-zlib
-BINKDTYPE:=$(BINKDTYPE), zlib
+ZLIB_LIB  ?= z
+LIBS      += -l$(ZLIB_LIB)
+BINKDNAME := $(BINKDNAME)-zlib
+OUTDIR    := $(OUTDIR)-zlib
+BINKDTYPE := $(BINKDTYPE), zlib
 else
-BINKDNAME:=$(BINKDNAME)-zlibdl
-OUTDIR:=$(OUTDIR)-zlibdl
-BINKDTYPE:=$(BINKDTYPE), zlibdl
+BINKDNAME := $(BINKDNAME)-zlibdl
+OUTDIR    := $(OUTDIR)-zlibdl
+BINKDTYPE := $(BINKDTYPE), zlibdl
 endif
 endif
-# zlib support ----------------------------------------------------------------
 
-# bzlib2 support ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 ifdef BZLIB2
-CDEFS+= -DWITH_BZLIB2
-ZLIB_BZLIB2=1
-
+CDEFS += -DWITH_BZLIB2
 ifdef BZLIB2_BASE
-C_DIRS+= -I "$(BZLIB2_BASE)/include"
-L_DIRS+= -L "$(BZLIB2_BASE)/lib"
+C_DIRS += -I"$(BZLIB2_BASE)/include"
+L_DIRS += -L"$(BZLIB2_BASE)/lib"
 endif
-
 ifndef ZLIBDL
-ifndef BZLIB2_LIB
-BZLIB2_LIB=bz2
-endif
-LIBS+= -l"$(BZLIB2_LIB)"
-BINKDNAME:=$(BINKDNAME)-bzlib2
-OUTDIR:=$(OUTDIR)-bzlib2
-BINKDTYPE:=$(BINKDTYPE), bzlib2
+BZLIB2_LIB ?= bz2
+LIBS       += -l$(BZLIB2_LIB)
+BINKDNAME  := $(BINKDNAME)-bzlib2
+OUTDIR     := $(OUTDIR)-bzlib2
+BINKDTYPE  := $(BINKDTYPE), bzlib2
 else
-BINKDNAME:=$(BINKDNAME)-bzlib2dl
-OUTDIR:=$(OUTDIR)-bzlib2dl
-BINKDTYPE:=$(BINKDTYPE), bzlib2dl
+BINKDNAME  := $(BINKDNAME)-bzlib2dl
+OUTDIR     := $(OUTDIR)-bzlib2dl
+BINKDTYPE  := $(BINKDTYPE), bzlib2dl
 endif
 endif
-# bzlib2 support --------------------------------------------------------------
 
-# zlib & bzlib2 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-ifdef ZLIB_BZLIB2
+ifneq ($(ZLIB)$(BZLIB2),)
+SRCS += compress.c
 ifdef ZLIBDL
-CDEFS+= -DZLIBDL
-SRCS+= zlibdl.c
+CDEFS += -DZLIBDL
+SRCS  += zlibdl.c
 endif
-SRCS+= compress.c
 endif
-# zlib & bzlib2 ---------------------------------------------------------------
+
+# =============================================================================
+
+# Options which don't change the exe name still need their own output dir
+OUTDIR  := $(OUTDIR)$(subst $(eval) ,,$(OPTDIR))
 
 BINKDEXE = $(BINKDNAME).exe
+OBJDIR   = $(OUTDIR)/obj
+OBJS     = $(addprefix $(OBJDIR)/,$(SRCS:.c=.o))
+RESOBJS  = $(addprefix $(OBJDIR)/,$(RES:.rc=.o))
+OBJDIRS  = $(OBJDIR) $(OBJDIR)/nt $(OBJDIR)/ntlm
 
-OBJS=$(addprefix $(OBJDIR)/,$(patsubst %.c,%.o, $(SRCS)))
-RESOBJS=$(addprefix $(OBJDIR)/, $(patsubst %.rc,%.o, $(RES)))
+.PHONY: all printinfo clean distclean
 
-.PHONY: all printinfo install html clean distclean makedirs
-
-all: printinfo makedirs $(OUTDIR)/$(BINKDEXE)
+all: printinfo $(OUTDIR)/$(BINKDEXE)
 
 printinfo:
-	@echo "-----------------------------------------------------------"
-	@echo "binkd type : $(BINKDTYPE)"
-	@echo "output dir : $(OUTDIR)"
-	@echo "binkd exe  : $(BINKDEXE)"
-ifdef PERL
-	@echo "perlincl   : $(PERL_INCL)"
-ifndef PERLDL
-	@echo "perllib    : $(PERL_LIB)"
-endif
-endif
-ifdef ZLIB
-ifdef ZLIB_BASE
-	@echo "zlibincl   : $(ZLIB_BASE)"
-endif
-ifndef ZLIBDL
-	@echo "zliblib    : $(ZLIB_LIB)"
-endif
-endif
-ifdef BZLIB2
-ifdef BZLIB2_BASE
-	@echo "bzlib2incl : $(BZLIB2_BASE)"
-endif
-ifndef ZLIBDL
-	@echo "bzlib2lib  : $(BZLIB2_LIB)"
-endif
-endif
-	@echo "-----------------------------------------------------------"
+	@echo -----------------------------------------------------------
+	@echo binkd type : $(BINKDTYPE)
+	@echo output dir : $(OUTDIR)
+	@echo binkd exe  : $(BINKDEXE)
+	@echo -----------------------------------------------------------
+
+$(OBJDIRS):
+	@$(call MKDIR,$@)
+
+$(OBJS) $(RESOBJS): | $(OBJDIRS)
+
+$(OUTDIR)/$(BINKDEXE): $(OBJS) $(RESOBJS)
+	@echo Linking $(BINKDEXE)...
+	@$(CC) $(CFLAGS) $(LDFLAGS) $(L_DIRS) -o $@ $(OBJS) $(RESOBJS) $(LIBS)
 
 $(OBJDIR)/%.o: %.c
 	@echo Compiling $<...
@@ -262,44 +246,12 @@ $(OBJDIR)/%.o: %.rc
 	@echo Compiling $<...
 	@$(WINDRES) $(CDEFS) -D"BINKDNAME=$(BINKDNAME)" -D"BINKDEXE=$(BINKDEXE)" $< $@
 
-$(OUTDIR)/$(BINKDEXE): $(OBJS) $(RESOBJS)
-	@echo Linking $(BINKDEXE)...
-	@$(CC) $(CFLAGS) $(LFLAGS) $(L_DIRS) -o $@ $(OBJS) $(RESOBJS) $(LIBS)
-
-makedirs: $(MAKEDIRS)
-
-$(MAKEDIRS):
-	@echo Making directory $@...
-	@mkdir -p $@
-
-install: all clean
-
-html: binkd.html
-
-binkd.html: binkd.8
-	groff -Thtml -mman binkd.8 >$(OUTDIR)/binkd.html
-
-#
-# Cleanup
-
-CLEANEXT:= *.o *.d
-
 clean:
 	@echo Cleanup...
-	-@rm -f $(foreach dir,$(MAKEDIRSONLY),$(foreach ext,$(CLEANEXT),$(dir)/$(ext)))
+	@$(call RMDIR,$(OBJDIR))
 
 distclean:
 	@echo Full cleanup...
-	-@rm -rf $(OUTDIR)
+	@$(call RMDIR,$(OUTDIR))
 
-#
-# Dependencies (idea taken from zlib makefile)
-
-DEPS:=$(foreach dir,$(MAKEDIRSONLY),$(wildcard $(dir)/*.d))
-
-ifneq ($(DEPS),)
-include $(DEPS)
-endif
-
-# Dependencies for resourses
-$(RESOBJS): Config.h confopt.h
+-include $(OBJS:.o=.d)
