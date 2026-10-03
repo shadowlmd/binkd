@@ -297,7 +297,10 @@ void vLog (int lev, char *s, va_list ap)
   if (!perl_on_log(buf, sizeof(buf), &lev)) ok = 0;
 #endif
   /* match against nolog */
+  /* current_nolog belongs to config and is changed by InitLog() */
+  LockSem(&lsem);
   if (mask_test(buf, current_nolog) != NULL ) ok = 0;
+  ReleaseSem(&lsem);
   /* log output */
   if (ok)
   { /* if (ok) */
@@ -321,15 +324,17 @@ void vLog (int lev, char *s, va_list ap)
         return;
     }
 
-    using_logpath = (current_logpath && *current_logpath) ?
-                                 current_logpath : getenv(BINKD_LOGPATH_ENVIRON);
-    if (lev <= current_loglevel && using_logpath)
+    if (lev <= current_loglevel)
     {
       FILE *logfile = 0;
       int i;
 
+      /* current_logpath can be freed by InitLog() on config reload,
+       * so use it only under lsem */
       LockSem(&lsem);
-      for (i = 0; logfile == 0 && i < 10; ++i)
+      using_logpath = (current_logpath && *current_logpath) ?
+                                 current_logpath : getenv(BINKD_LOGPATH_ENVIRON);
+      for (i = 0; using_logpath && logfile == 0 && i < 10; ++i)
         logfile = fopen (using_logpath, "a");
       if (logfile)
       {
@@ -340,7 +345,7 @@ void vLog (int lev, char *s, va_list ap)
         fclose (logfile);
         first_time = 0;
       }
-      else
+      else if (using_logpath)
         fprintf (stderr, "Cannot open %s: %s!\n", using_logpath, strerror (errno));
       ReleaseSem(&lsem);
     }

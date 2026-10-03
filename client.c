@@ -140,7 +140,9 @@ static int do_client(BINKD_CONFIG *config)
       }
       rel_grow_handles (6);
       threadsafe(++n_clients);
+      LockSem(&config_sem);
       lock_config_structure(config);
+      ReleaseSem(&config_sem);
       args.node   = r;
       args.config = config;
       if ((pid = branch (call, &args, sizeof (args))) < 0)
@@ -428,7 +430,7 @@ static int call0 (FTN_NODE *node, BINKD_CONFIG *config)
       }
       if (!binkd_exit)
       {
-        Log (1, "connection to %s failed");
+        Log (1, "connection to %s failed", host);
         /* bad_try (&node->fa, "exec error", BAD_CALL, config); */
       }
       sockfd = INVALID_SOCKET;

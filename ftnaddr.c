@@ -257,7 +257,7 @@ void ftnaddress_to_filename_ (char *s, FTN_ADDR *fa, FTN_DOMAIN *pDomains
 #endif
     {
       if (fa->z != d->z[0])
-	sprintf (ext, ".%03x", fa->z);
+	snprintf (ext, sizeof (ext), ".%03x", fa->z);
 
       if (fa->p != 0)
 	sprintf (pnt, ".pnt%s%08x", PATH_SEPARATOR, fa->p);
