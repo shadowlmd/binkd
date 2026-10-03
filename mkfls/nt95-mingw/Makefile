@@ -5,7 +5,7 @@
 #   mingw32-make -f mkfls/nt95-mingw/Makefile [options]
 #
 # Options: [DEBUG=1] [DEBUGCHILD=1] [BINKD9X=1] [IPV6=1] [FTS5004=1]
-#          [BW_LIM=1] [AF_FORCE=1] [NTLM=0] [PERL=1] [PERLDL=1]
+#          [BW_LIM=1] [AF_FORCE=1] [PERL=1] [PERLDL=1]
 #          [ZLIB=1] [BZLIB2=1] [ZLIBDL=1]
 #
 # On Windows the commands are run by cmd.exe, MSYS is not required.
@@ -41,33 +41,27 @@ endif
 CC      = gcc
 WINDRES = windres
 
-NTLM ?= 1
-
 OUTDIR    = bin/mingw32
 BINKDTYPE = mingw32
 
 CFLAGS  += -mthreads -pipe -funsigned-char -Wall -Wno-char-subscripts -Wno-comment
 
-CDEFS += -DWIN32 -DHAVE_THREADS -DHAVE_INTTYPES_H -DHAVE_INTMAX_T -DHAVE_IO_H \
-         -DHAVE_DOS_H -DHAVE_STDARG_H -DHAVE_SNPRINTF -DHAVE_VSNPRINTF       \
-         -DHTTPS -DAMIGADOS_4D_OUTBOUND -DHASATTRIBUTE -DNONAMELESSUNION
+CDEFS += -DWIN32 -DHAVE_THREADS -DHAVE_INTTYPES_H -DHAVE_INTMAX_T            \
+         -DHAVE_IO_H -DHAVE_DOS_H -DHAVE_STDARG_H -DHAVE_SNPRINTF            \
+         -DHAVE_VSNPRINTF -DHTTPS -DNTLM=1 -DAMIGADOS_4D_OUTBOUND            \
+         -DHASATTRIBUTE -DNONAMELESSUNION
 
-SRCS = binkd.c readcfg.c tools.c ftnaddr.c ftnq.c client.c server.c protocol.c \
-       bsy.c inbound.c branch.c ftndom.c ftnnode.c srif.c pmatch.c readflo.c   \
-       prothlp.c iptools.c rfc2553.c run.c binlog.c exitproc.c getw.c xalloc.c \
-       setpttl.c https.c md5b.c crypt.c getopt.c snprintf.c                    \
-       nt/breaksig.c nt/getfree.c nt/sem.c nt/TCPErr.c nt/WSock.c             \
-       nt/w32tools.c nt/tray.c
+SRCS = binkd.c readcfg.c tools.c ftnaddr.c ftnq.c client.c server.c          \
+       protocol.c bsy.c inbound.c branch.c ftndom.c ftnnode.c srif.c         \
+       pmatch.c readflo.c prothlp.c iptools.c rfc2553.c run.c binlog.c       \
+       exitproc.c getw.c xalloc.c setpttl.c https.c md5b.c crypt.c getopt.c  \
+       snprintf.c                                                            \
+       nt/breaksig.c nt/getfree.c nt/sem.c nt/TCPErr.c nt/WSock.c            \
+       nt/w32tools.c nt/tray.c                                               \
+       ntlm/des_enc.c ntlm/helpers.c ntlm/ecb_enc.c ntlm/md4_dgst.c          \
+       ntlm/set_key.c
 
 RES = nt/binkdres.rc
-
-# NTLM proxy authorization +++++++++++++++++++++++++++++++++++++++++++++++++++
-ifeq ($(NTLM),1)
-CDEFS += -DNTLM
-SRCS  += ntlm/des_enc.c ntlm/helpers.c ntlm/ecb_enc.c ntlm/md4_dgst.c ntlm/set_key.c
-else
-OPTDIR += -nontlm
-endif
 
 # binkd9x / binkd (NT service) +++++++++++++++++++++++++++++++++++++++++++++++
 ifdef BINKD9X
@@ -138,7 +132,7 @@ ifdef PERL
 PERL_BASE ?= $(shell perl -MConfig -e $(Q)print $$Config{prefix}$(Q))
 PERL_INCL  = $(PERL_BASE)/lib/CORE
 
-CDEFS  += -DWITH_PERL -DNDEBUG -DNO_STRICT -DHAVE_DES_FCRYPT \
+CDEFS  += -DWITH_PERL -DNDEBUG -DNO_STRICT -DHAVE_DES_FCRYPT                 \
           -DPERL_IMPLICIT_CONTEXT -DPERL_IMPLICIT_SYS -DPERL_MSVCRT_READFIX
 SRCS   += perlhooks.c
 C_DIRS += -idirafter "$(PERL_INCL)"
