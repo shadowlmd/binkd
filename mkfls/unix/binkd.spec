@@ -59,6 +59,11 @@ sed -i 's/\(\t$(INSTALL)\) -s/\1/g' ./Makefile.in
 
 %install
 %make_install
+# Special workaround for Fedora Linux: starting with version 41
+# the '/usr/sbin' directory no longer exists, only '/usr/bin' remains.
+%if "%{_sbindir}" == "%{_bindir}"
+mv %{buildroot}/usr/sbin %{buildroot}%{_sbindir}
+%endif
 
 %files
 %defattr(-,root,root)
